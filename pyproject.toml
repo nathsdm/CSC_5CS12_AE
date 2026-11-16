@@ -6,3 +6,8 @@ dependencies = [
     "fastapi>=0.163.1",
     "uvicorn[standard]>=0.54.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+]
