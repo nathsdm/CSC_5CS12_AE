@@ -26,7 +26,7 @@ def test_generate_code_custom_param():
 
 def test_generate_code_invalid_params():
 
-    with pytest.raises(ValueError): # type: ignore
+    with pytest.raises(ValueError):
         generate_code(n_colors=-1)
 
     with pytest.raises(ValueError):
