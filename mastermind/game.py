@@ -23,3 +23,5 @@ def generate_code(n_colors : int = 6, code_length : int = 4) -> tuple[int, ...]:
 generate_code()
 
 # %%
+
+d
