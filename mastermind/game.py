@@ -17,11 +17,4 @@ def generate_code(n_colors : int = 6, code_length : int = 4) -> tuple[int, ...]:
         code.append(random.randint(0, n_colors-1))
     return tuple(code)
 
-
 # %%
-
-generate_code()
-
-# %%
-
-d
