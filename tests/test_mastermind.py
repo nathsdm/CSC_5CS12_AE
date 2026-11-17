@@ -2,7 +2,7 @@
 
 import pytest
 
-from mastermind.game import evaluate_guess, generate_code, validate_guess
+from mastermind.game import Mastermind, evaluate_guess, generate_code, validate_guess
 
 # %%
 
@@ -77,3 +77,78 @@ def test_evaluate_guess_invalid_params():
 
     with pytest.raises(ValueError):
         evaluate_guess(code=(0,1,2,3), guess=(0,1,2))
+
+# %%
+
+def test_mastermind_init():
+
+    game = Mastermind(n_colors=4, code_length=3, max_attempts=5)
+    assert game.n_colors == 4
+    assert game.code_length == 3
+    assert game.max_attempts == 5
+    assert len(game.code) == 3
+    assert game.history == []
+    assert game.status == "playing"
+
+def test_mastermind_invalid_init():
+
+    with pytest.raises(ValueError):
+        Mastermind(max_attempts=0)
+
+    with pytest.raises(ValueError):
+        Mastermind(max_attempts=-1)
+
+def test_mastermind_submit_guess():
+
+    game = Mastermind()
+    game.code = (0,1,2,3)
+
+    result = game.submit_guess((0,2,1,4))
+
+    assert result == (1,2)
+    assert game.history == [((0,2,1,4), (1,2))]
+    assert game.status == "playing"
+
+
+def test_mastermind_invalid_guess():
+
+    game = Mastermind()
+    game.code = (0,1,2,3)
+
+    with pytest.raises(ValueError):
+        game.submit_guess((0,1,2,6))
+
+    assert game.history == []
+    assert game.status == "playing"
+
+def test_mastermind_win():
+
+    game = Mastermind(max_attempts=1)
+    game.code = (0,1,2,3)
+
+    result = game.submit_guess((0,1,2,3))
+
+    assert result == (4,0)
+    assert game.status == "won"
+    assert len(game.history) == 1
+
+    with pytest.raises(ValueError): 
+        game.submit_guess((0,1,2,3))
+
+def test_mastermind_loss():
+
+    game = Mastermind(max_attempts=2)
+    game.code = (0,1,2,3)
+
+    game.submit_guess((4,4,4,4))
+
+    assert game.status == "playing"
+    assert len(game.history) == 1
+
+    game.submit_guess((5,5,5,5))
+
+    assert game.status == "lost"
+    assert len(game.history) == 2
+
+    with pytest.raises(ValueError):
+        game.submit_guess((0,1,2,3))

@@ -115,3 +115,50 @@ def evaluate_guess(
 
 
 # %%
+
+class Mastermind:
+
+    def __init__(
+            self, 
+            n_colors : int = 6,
+            code_length : int = 4,
+            max_attempts : int = 10
+    ) -> None :
+
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
+
+        self.n_colors = n_colors 
+        self.code_length = code_length 
+        self.max_attempts = max_attempts
+        self.code : tuple[int, ...] = generate_code(n_colors, code_length)
+        self.history : list[tuple[tuple[int, ...], tuple[int, int]]] = [] # stores (guess, (exact_matches, misplaced_matches))
+        self.status : str = "playing" # playing, won or lost
+
+
+    def submit_guess(
+            self,
+            guess : tuple[int, ...]
+    ) -> tuple[int, int]:
+
+        if self.status != "playing":
+            raise ValueError("The game is over")
+
+        if not validate_guess(guess, self.n_colors, self.code_length):
+            raise ValueError("The guess is not valid")
+
+        result = evaluate_guess(self.code, guess)
+        self.history.append((guess, result))
+
+        if result[0] == self.code_length: # nb of exact_matches = length of code
+            self.status = "won"
+
+        elif len(self.history) >= self.max_attempts:
+            self.status = "lost"
+
+        return result
+        
+
+    
+
+    
