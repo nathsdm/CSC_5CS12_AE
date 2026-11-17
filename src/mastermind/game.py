@@ -62,7 +62,7 @@ def validate_guess(
     if len(guess) != code_length:
         return False
 
-    if not all(isinstance(x, int) for x in guess):
+    if not all(type(x) is int for x in guess):
         return False
 
     return all(0 <= x < n_colors for x in guess)
