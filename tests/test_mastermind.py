@@ -2,7 +2,7 @@
 
 import pytest
 
-from mastermind.game import generate_code, validate_guess
+from mastermind.game import evaluate_guess, generate_code, validate_guess
 
 # %%
 
@@ -53,3 +53,27 @@ def test_validate_guess_invalid_params():
 
     with pytest.raises(ValueError):
         validate_guess(code_length=-1, guess=(0,))
+
+# %%
+
+def test_evaluate_guess():
+
+    assert evaluate_guess(code=(0,1,0,2), guess=(1,2,3,3)) == (0,2)
+    assert evaluate_guess(code=(0,1,0,2), guess=(0,1,0,2)) == (4,0)
+    assert evaluate_guess(code=(0,1,0,2), guess=(2,0,1,0)) == (0,4)
+    assert evaluate_guess(code=(0,1,0,2), guess=(0,4,1,3)) == (1,1)
+    assert evaluate_guess(code=(0,1,0,2), guess=(3,3,3,3)) == (0,0)
+
+def test_evaluate_guess_invalid_params():
+
+    with pytest.raises(ValueError):
+        evaluate_guess(code=[0,1], guess=(0,1))
+
+    with pytest.raises(ValueError):
+        evaluate_guess(code=(0,1), guess=[0,1])
+
+    with pytest.raises(ValueError):
+        evaluate_guess(code=[0,1], guess=[0,1])
+
+    with pytest.raises(ValueError):
+        evaluate_guess(code=(0,1,2,3), guess=(0,1,2))

@@ -69,3 +69,49 @@ def validate_guess(
 
 # %%
 
+def evaluate_guess(
+        code : tuple[int, ...],
+        guess : tuple[int, ...]) -> tuple[int, int]:
+
+    """
+    Function that returns the number of colors present in the code that are correctly placed and the number 
+    of colors present in the code that are misplaced
+    
+    Inputs : 
+        - code (tuple) : true secret sequence 
+        - guess (tuple) : sequence proposed by the player 
+
+    Output : 
+        - (exact_matches, misplaced_matches) : first element = number of colors correctly placed
+                                               second element = number of colors misplaced 
+    
+    """
+
+    if not isinstance(code, tuple) or not isinstance(guess, tuple):
+        raise ValueError("code and guess must be tuples") 
+
+    if len(code) != len(guess):
+        raise ValueError("code and guess must be the same length")
+
+    exact_matches = 0
+    misplaced_matches = 0
+
+    remaining_colors_code = []
+    remaining_colors_guess = []
+
+    for color_code, color_guess in zip(code, guess):
+        if color_code == color_guess:
+            exact_matches += 1
+        else:
+            remaining_colors_code.append(color_code)
+            remaining_colors_guess.append(color_guess)
+
+    for color in remaining_colors_guess:
+        if color in remaining_colors_code:
+            misplaced_matches += 1 
+            remaining_colors_code.remove(color)
+
+    return (exact_matches, misplaced_matches)
+
+
+# %%
