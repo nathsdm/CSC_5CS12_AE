@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Mastermind</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+    <h1>Mastermind</h1>
+    <div id="game-config">
+        <p>Configuration de la partie :</p>
+        <ul>
+            <li>Nombre de couleurs : 6</li>
+            <li>Longueur du code : 4</li>
+            <li>Nombre maximum d'essais : 10</li>
+        </ul>
+    </div>
+
+    <!-- Zone de jeu (cachée par défaut) -->
+    <div id="game-area" style="display:none; margin-top: 20px;">
+        <p>Partie en cours</p>
+        <label for="guess-input">Proposition (ex: 0.1.2.3) :</label>
+        <input type="text" id="guess-input" placeholder="0.1.2.3">
+        <button onclick="submitGuess()">Deviner</button>
+    </div>
+
+    <!-- Zone d'affichage des résultats -->
+    <div id="results" style="margin-top: 20px;"></div>
+
+    <script>
+        let currentGameId = null;
+
+        // Fonction pour appeler la route Python qui crée la partie
+        async function startGame() {
+            const response = await fetch('/api/mastermind/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ n_colors: 6, code_length: 4, max_attempts: 10 })
+            });
+            const data = await response.json();
+            
+            currentGameId = data.game_id;
+            
+            // Met à jour l'interface web
+            document.getElementById('game-area').style.display = 'block';
+            document.getElementById('results').innerHTML = '<div class="log">Partie commencée !</div>';
+        }
+
+        startGame();
+
+        // Fonction pour envoyer la combinaison au code Python
+        async function submitGuess() {
+            const input = document.getElementById('guess-input').value;
+            // Transforme le texte "0.1.2.3" en tableau d'entiers [0, 1, 2, 3]
+            const guessArray = input.split('.').map(Number);
+
+            const response = await fetch(`/api/mastermind/${currentGameId}/guess`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ guess: guessArray })
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                const resultsDiv = document.getElementById('results');
+                const resultText = `Tentative [${guessArray}] : ${data.exact_matches} bien placés, ${data.misplaced_matches} mal placés. (Reste ${data.attempts_left} essais)`;
+                
+                resultsDiv.innerHTML += `<div class="log">${resultText}</div>`;
+                
+                if (data.status === 'won') {
+                    resultsDiv.innerHTML += `<div class="log" style="background:#d4edda;color:green;"><b>Gagné ! Code trouvé.</b></div>`;
+                } else if (data.status === 'lost') {
+                    resultsDiv.innerHTML += `<div class="log" style="background:#f8d7da;color:red;"><b>Perdu ! Essais épuisés.</b></div>`;
+                }
+            } else {
+                alert("Erreur : " + data.detail);
+            }
+        }
+    </script>
+</body>
+</html>
