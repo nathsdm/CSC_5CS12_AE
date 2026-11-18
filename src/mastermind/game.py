@@ -1,6 +1,8 @@
 # %%
 
 import random
+from src.game import Game
+from pydantic import BaseModel
 
 # %%
 
@@ -116,7 +118,7 @@ def evaluate_guess(
 
 # %%
 
-class Mastermind:
+class Mastermind(Game):
 
     def __init__(
             self, 
@@ -124,6 +126,7 @@ class Mastermind:
             code_length : int = 4,
             max_attempts : int = 10
     ) -> None :
+        super().__init__()
 
         if max_attempts < 1:
             raise ValueError("max_attempts must be positive")
@@ -131,9 +134,9 @@ class Mastermind:
         self.n_colors = n_colors 
         self.code_length = code_length 
         self.max_attempts = max_attempts
+        self.attempts_left = max_attempts
         self.code : tuple[int, ...] = generate_code(n_colors, code_length)
         self.history : list[tuple[tuple[int, ...], tuple[int, int]]] = [] # stores (guess, (exact_matches, misplaced_matches))
-        self.status : str = "playing" # playing, won or lost
 
 
     def submit_guess(
@@ -149,6 +152,7 @@ class Mastermind:
 
         result = evaluate_guess(self.code, guess)
         self.history.append((guess, result))
+        self.attempts_left -= 1
 
         if result[0] == self.code_length: # nb of exact_matches = length of code
             self.status = "won"
@@ -157,8 +161,14 @@ class Mastermind:
             self.status = "lost"
 
         return result
-        
 
+class MastermindConfig(BaseModel):
+    n_colors: int = 6
+    code_length: int = 4
+    max_attempts: int = 10
+    
+class MastermindInput(BaseModel):
+    guess: list[int]
     
 
     
