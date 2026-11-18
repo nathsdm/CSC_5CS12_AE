@@ -11,14 +11,14 @@ def choose_target() -> str:
     """At each game start, choose a target at random among the valid words."""
     return random.choice(list(VALID_WORDS))
 
-def _check_target(target: str) -> bool:
+def check_target(target: str) -> bool:
     """Check if the target is a 5-letter word and is in the list of valid words."""
     return (len(target) == N) & (target in VALID_WORDS)
 
-def _check_guess_len(guess: str) -> bool:
+def check_guess_len(guess: str) -> bool:
     """Check if the guess is a 5-letter word."""
     return(len(guess) == N)
 
-def _check_guess_list(guess: str) -> bool:
+def check_guess_list(guess: str) -> bool:
     """Check if guess is in the list of valid words."""
     return (guess in VALID_WORDS)

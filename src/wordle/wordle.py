@@ -1,14 +1,17 @@
 from collections import Counter
-from typing import Union
-from .utils import N, _check_target, _check_guess_list, _check_guess_len
+from typing import Union, Literal
+from pydantic import BaseModel
 
+from ..game import Game
+from .utils import N, check_target, check_guess_list, check_guess_len
 
 # Class
-class Wordle:
+class Wordle(Game):
 
     def __init__(self, target: str, mode: str) -> None:
+        super().__init__()
 
-        if not _check_target(target):
+        if not check_target(target):
             raise ValueError(f"Invalid target {target!r}: expected a valid {N}-letter word from the list.")
         
         self.target: str = target
@@ -61,13 +64,14 @@ class Wordle:
 
         return response
 
-    def display_response(self, guess: str, response: dict[int, dict[str, str]]) -> None:
+    def display_response(self, guess: str) -> None:
         """
         Display the answer nicely.
         
         Print example:  A  R  I  S  E
                         🟩 🟧 ⬛ ⬛ 🟩
         """
+        response = self.assess_guess(guess)
 
         guess_letters = list(guess.upper())
         display_letters = "  ".join(guess_letters)
@@ -77,7 +81,7 @@ class Wordle:
         print(colors)
         print("\n")
 
-    def update_constraints(self, guess: str, response: list[dict[str, str]]) -> dict[str, Union[dict[str, set], set]]:
+    def update_constraints(self, guess: str) -> dict[str, Union[dict[str, set], set]]:
         """
         Store orange and green letters for the player to reuse them in next guesses.
         For hard and super-hard mode only.
@@ -88,6 +92,13 @@ class Wordle:
         Return: 
             - a dictionary returning the updated constraints.
         """
+        response = self.assess_guess(guess)
+
+        present_letters = {
+            letter for i, letter in enumerate(guess)
+            if response[i][letter] != "⬛"
+        }
+        self.constraints["⬛"].difference_update(present_letters)
 
         for i, guess_letter in enumerate(guess):
 
@@ -104,7 +115,7 @@ class Wordle:
 
                 self.constraints["🟧"][guess_letter].add(i)
 
-            else:
+            elif guess_letter not in present_letters:
                 self.constraints["⬛"].add(guess_letter)
 
         return self.constraints
@@ -127,7 +138,7 @@ class Wordle:
             return True
 
         # Hard mode: any revealed hints must be used in subsequent guesses
-        if self.mode == "hard":
+        if self.mode in {"hard", "super-hard"}:
             green_letters = list(green.keys())
             orange_letters = list(orange.keys())
 
@@ -141,22 +152,19 @@ class Wordle:
         # - grey letters must not be reused
         if self.mode == "super-hard":
 
+            # Check required positions, even when the letter is missing.
+            for letter, position in green.items():
+                if position >= len(guess) or guess[position] != letter:
+                    print(f"The letter {letter} must be in position {position}.")
+                    return False
+
             for i, letter in enumerate(guess):
-                
-                # A green letter should be used at the same position 
-                if letter in green:
-                    if i not in green[letter]:
-                        print(f"The letter {letter} is misplaced.")
-                        return False
-                
-                # An orange letter should be used at a different position
-                elif letter in orange:
-                    if i in orange[letter]:
-                        print(f"The letter {letter} is misplaced.")
-                        return False
-                
-                # A grey letter should not be used
-                elif letter in grey:
+                # A letter can have both green and orange hints.
+                if letter in orange and i in orange[letter]:
+                    print(f"The letter {letter} is misplaced.")
+                    return False
+
+                if letter in grey:
                     print(f"You cannot use {letter} anymore.")
                     return False
 
@@ -170,27 +178,30 @@ class Wordle:
             - Update the constraints accordingly ;
             - Add 1 to the number of attempts.
         """
+        if self.status != "playing":
+            return
 
-        if not _check_guess_len(guess):
+        if not check_guess_len(guess):
             print(f"Your guess does not have {N} letters.")
             return
 
-        if not _check_guess_list(guess):
+        if not check_guess_list(guess):
             print(f"Guess not in list.")
             return
         
         if not self.is_admissible(guess):
-            print("Your guess does not comply with the constraints.")
+            print("Your guess does not comply with constraints.")
             return
 
         response = self.assess_guess(guess)
-        self.display_response(guess, response)
-
-        print(f"constraints: {self.constraints}")
-        self.update_constraints(guess, response)
-        print(f"updated constraints: {self.constraints}")
-
+        self.display_response(guess)
+        self.update_constraints(guess)
         self.attempts += 1
+
+        if guess == self.target:
+            self.status = "won"
+        elif self.attempts >= self.max_attempts:
+            self.status = "lost"
 
     def play(self):
         """Simulate all the rounds in the game."""
@@ -208,6 +219,14 @@ class Wordle:
 
             if guess == self.target:
                 print("Congratulations, you've won!")
+                self.status = "won"
                 return
         
         print(f"Game over! The word was {self.target}")
+        self.status = "lost"
+
+class WordleConfig(BaseModel):
+    mode: Literal["normal", "hard", "super-hard"] = "normal"
+
+class WordleInput(BaseModel):
+    guess: str

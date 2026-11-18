@@ -2,7 +2,7 @@
 
 import pytest
 
-from mastermind.game import Mastermind, evaluate_guess, generate_code, validate_guess
+from src.mastermind.game import Mastermind, evaluate_guess, generate_code, validate_guess
 
 # %%
 
