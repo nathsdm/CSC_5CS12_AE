@@ -5,12 +5,13 @@ from fastapi.responses import HTMLResponse
 # Import des jeux
 from src.game import Game
 from src.mastermind.game import Mastermind, MastermindConfig, MastermindInput
+from src.wordle.game import Wordle, WordleConfig, WordleInput
 
 app = FastAPI()
 
-# ==========================================
-# ROUTES HTML (Ton code)
-# ==========================================
+# ========================================== #
+#                  ROUTES                    #
+# ========================================== #
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
@@ -24,7 +25,13 @@ async def read_mastermind(request: Request):
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
 
-# Base de données temporaire pour stocker les parties en cours sur les différents jeux.
+@app.get("/wordle", response_class=HTMLResponse)
+async def read_wordle(request: Request):
+    with open("./src/wordle/game.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content, status_code=200)
+
+# Base de données temporaire pour stocker les parties en cours sur les différents jeux
 games_db: dict[str, Game] = {}
 
 # ========================================== #
@@ -35,7 +42,7 @@ games_db: dict[str, Game] = {}
 def create_game(config: MastermindConfig):
     game_id = str(uuid.uuid4())
     games_db[game_id] = Mastermind(config.n_colors, config.code_length, config.max_attempts)
-    return {"game_id": game_id, "message": "Partie créée"}
+    return {"game_id": game_id, "message": "Partie Mastermind créée"}
 
 @app.post("/api/mastermind/{game_id}/guess")
 def make_guess(game_id: str, guess_input: MastermindInput):
@@ -55,6 +62,49 @@ def make_guess(game_id: str, guess_input: MastermindInput):
             "misplaced_matches": misplaced,
             "attempts_left": attempts_left,
             "status": status
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+# ========================================== #
+#                  WORDLE                    #
+# ========================================== #
+
+@app.post("/api/wordle/create")
+def create_wordle_game(config: WordleConfig):
+    game_id = str(uuid.uuid4())
+    games_db[game_id] = Wordle(config.target, config.mode)
+    return {"game_id": game_id, "message": "Partie Wordle créée"}
+
+@app.post("/api/wordle/{game_id}/guess")
+def make_wordle_guess(game_id: str, guess_input: WordleInput):
+    if game_id not in games_db:
+        raise HTTPException(status_code=404, detail="Partie introuvable")
+    
+    game = games_db[game_id]
+    if not isinstance(game, Wordle):
+        raise HTTPException(status_code=400, detail="Ce jeu n'est pas un Wordle")
+    
+    try:
+        guess = guess_input.guess.lower()
+
+        if not game.is_admissible(guess):
+            raise ValueError("Le mot proposé n'est pas valide.")
+
+        wordle_result = game.assess_guess(guess)
+        game.update_constraints(guess)
+        game.attempts += 1
+        
+        # Update game status based on the guess
+        if guess_input.guess == game.target:
+            game.status = "won"
+        elif game.attempts >= game.max_attempts:
+            game.status = "lost"
+        
+        return {
+            "wordle_result": wordle_result,
+            "attempts": game.attempts,
+            "status": game.status
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Wordle</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        body {
+            padding: 20px;
+        }
+        .guess-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .letter {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            border: 1px solid #ccc;
+            text-transform: uppercase;
+        }
+        .correct {
+            background-color: #6aaa64; /* Green */
+            color: white;
+        }
+        .present {
+            background-color: #c9b458; /* Yellow */
+            color: white;
+        }
+        .absent {
+            background-color: #787c7e; /* Gray */
+            color: white;
+        }
+        .status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+    </style>
+<body>
+    <main>
+        <header>
+            <div>
+                <h1>Wordle</h1>
+                <p>Trouvez le mot en six essais</p>
+            </div>
+        </header>
+
+        <section id="game-config" class="panel intro" aria-labelledby="welcome-title">
+            <h2 id="welcome-title">Prêt à jouer ?</h2>
+            <p>Devinez le mot de 5 lettres. Chaque couleur vous donnera un indice pour votre prochaine tentative.</p>
+            <p>Vous avez 6 essais pour trouver le mot.</p>
+            <div class="rules"><span><strong>5</strong>lettres</span><span><strong>6</strong>essais</span></div>
+        </section>
+
+        <section id="game-area" class="panel" aria-live="polite">
+            <p id="status" class="status">À vous de jouer !</p>
+            <div id="board" aria-label="Grille de jeu"></div>
+            <form class="guess-form" onsubmit="submitGuess(event)">
+                <input id="guess-input" type="text" minlength="5" maxlength="5" autocomplete="off" placeholder="Votre proposition" aria-label="Proposition de cinq lettres" required>
+                <button type="submit">Valider</button>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        let currentGameId = null;
+
+        // Fonction pour appeler la route Python qui crée la partie
+        async function startGame() {
+            const response = await fetch('/api/wordle/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ word_length: 5, max_attempts: 6 })
+            });
+            const data = await response.json();
+            
+            currentGameId = data.game_id;
+            
+            // Met à jour l'interface web
+            document.getElementById('game-config').style.display = 'none';
+            document.getElementById('game-area').style.display = 'block';
+            document.getElementById('status').textContent = 'À vous de jouer !';
+        }
+
+        startGame();
+
+        // Fonction pour envoyer la proposition au code Python
+        async function submitGuess(event) {
+            event.preventDefault();
+            const input = document.getElementById('guess-input').value.toLowerCase();
+            
+            try {
+                const response = await fetch(`/api/wordle/${currentGameId}/guess`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guess: input })
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    document.getElementById("status").textContent =
+                        data.detail || "Proposition invalide";
+                    return;
+                }
+
+                updateBoard(data);
+            }
+            catch (error) {
+                console.error('Erreur lors de l\'envoi de la proposition :', error);
+                document.getElementById('status').textContent = 'Erreur lors de l\'envoi de la proposition. Veuillez réessayer.';
+            }
+        }
+
+        // Fonction pour mettre à jour la grille de jeu et le clavier virtuel
+        function updateBoard(data) {
+            const board = document.getElementById('board');
+            const keyboard = document.getElementById('keyboard');
+            const status = document.getElementById('status');
+
+            // Met à jour la grille de jeu
+            const guessRow = document.createElement('div');
+            guessRow.className = 'guess-row';
+            board.appendChild(guessRow);
+
+            const entries = Object.entries(data.wordle_result)
+                .sort(([indexA], [indexB]) => Number(indexA) - Number(indexB));
+
+            entries.forEach(([index, letterInfo]) => {
+                const [letter, emoji] = Object.entries(letterInfo)[0];
+
+                const colorClass = {
+                    "🟩": "correct",
+                    "🟧": "present",
+                    "⬛": "absent"
+                }[emoji] || "absent";
+
+                const letterDiv = document.createElement("div");
+                letterDiv.className = `letter ${colorClass}`;
+                letterDiv.textContent = letter;
+                guessRow.appendChild(letterDiv);
+            });
+
+            // Met à jour le message d'état
+            status.textContent = data.status === "won" ? "Félicitations ! Vous avez trouvé le mot !" :
+                                 data.status === "lost" ? "Dommage ! Vous avez épuisé vos essais." :
+                                 `Essais restants : ${6 - data.attempts}`;
+        }
+    </script>
+</body>
+</html>

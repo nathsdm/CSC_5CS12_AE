@@ -3,7 +3,7 @@
 import pytest
 from copy import deepcopy
 
-from src.wordle.wordle import Wordle
+from wordle.game import Wordle
 from src.wordle.utils import (
     N,
     VALID_WORDS,

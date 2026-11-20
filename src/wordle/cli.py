@@ -1,4 +1,4 @@
-from .wordle import Wordle
+from .game import Wordle
 from .utils import choose_target
 
 

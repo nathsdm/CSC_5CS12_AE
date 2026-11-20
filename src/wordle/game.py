@@ -3,7 +3,7 @@ from typing import Union, Literal
 from pydantic import BaseModel
 
 from ..game import Game
-from .utils import N, check_target, check_guess_list, check_guess_len
+from .utils import N, check_target, check_guess_list, check_guess_len, choose_target
 
 # Class
 class Wordle(Game):
@@ -128,6 +128,14 @@ class Wordle(Game):
             - True if it does ;
             - False if it does not.
         """
+        
+        if not check_guess_len(guess):
+            print(f"Your guess does not have {N} letters.")
+            return False
+
+        if not check_guess_list(guess):
+            print(f"Guess not in list.")
+            return False
 
         green = self.constraints["🟩"]
         orange = self.constraints["🟧"]
@@ -180,14 +188,6 @@ class Wordle(Game):
         """
         if self.status != "playing":
             return
-
-        if not check_guess_len(guess):
-            print(f"Your guess does not have {N} letters.")
-            return
-
-        if not check_guess_list(guess):
-            print(f"Guess not in list.")
-            return
         
         if not self.is_admissible(guess):
             print("Your guess does not comply with constraints.")
@@ -227,6 +227,7 @@ class Wordle(Game):
 
 class WordleConfig(BaseModel):
     mode: Literal["normal", "hard", "super-hard"] = "normal"
+    target: str = choose_target()
 
 class WordleInput(BaseModel):
     guess: str
