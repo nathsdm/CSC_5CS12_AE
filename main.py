@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse
 from src.game import Game
 from src.mastermind.game import Mastermind, MastermindConfig, MastermindInput
 from src.wordle.game import Wordle, WordleConfig, WordleInput
+from src.sudoku.sudoku import Sudoku, SudokuConfig, SudokuInput
 
 app = FastAPI()
 
@@ -28,6 +29,12 @@ async def read_mastermind(request: Request):
 @app.get("/wordle", response_class=HTMLResponse)
 async def read_wordle(request: Request):
     with open("./src/wordle/game.html", "r", encoding="utf-8") as f:
+        html_content = f.read()
+    return HTMLResponse(content=html_content, status_code=200)
+
+@app.get("/sudoku", response_class=HTMLResponse)
+async def read_sudoku(request: Request):
+    with open("./src/sudoku/game.html", "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content, status_code=200)
 
@@ -108,3 +115,31 @@ def make_wordle_guess(game_id: str, guess_input: WordleInput):
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+# ========================================== #
+#                  SUDOKU                    #
+# ========================================== #
+
+@app.post("/api/sudoku/create")
+def create_sudoku_game(config: SudokuConfig):
+    game_id = str(uuid.uuid4())
+    game = Sudoku(config.difficulty)
+    games_db[game_id] = game
+    return {"game_id": game_id, "grid": game.sudoku, "message": "Partie Sudoku créée"}
+
+@app.post("/api/sudoku/{game_id}/check")
+def check_sudoku_solution(game_id: str, sudoku_input: SudokuInput):
+    if game_id not in games_db:
+        raise HTTPException(status_code=404, detail="Partie introuvable")
+
+    game = games_db[game_id]
+    if not isinstance(game, Sudoku):
+        raise HTTPException(status_code=400, detail="Ce jeu n'est pas un Sudoku")
+
+    board = sudoku_input.board
+    solved = game.checkPlayerSolution(board)
+    return {
+        "solved": solved,
+        "errors": game.findErrors(board),
+        "status": game.status
+    }

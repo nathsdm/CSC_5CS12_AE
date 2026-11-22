@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Sudoku</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        #board {
+            display: grid;
+            grid-template-columns: repeat(9, 44px);
+            width: fit-content;
+            border: 3px solid var(--pico-contrast);
+            margin-bottom: 20px;
+        }
+        #board input.cell {
+            width: 44px;
+            height: 44px;
+            margin: 0;
+            padding: 0;
+            border: 1px solid var(--pico-muted-border-color);
+            border-radius: 0;
+            background-color: var(--pico-background-color);
+            color: var(--pico-primary);
+            text-align: center;
+            font-size: 1.4em;
+            opacity: 1;
+        }
+        #board input.cell:focus {
+            background-color: var(--pico-primary-focus);
+            box-shadow: none;
+        }
+        /* Bordures épaisses entre les carrés 3 x 3 */
+        #board input.cell:nth-child(9n+4),
+        #board input.cell:nth-child(9n+7) {
+            border-left: 3px solid var(--pico-contrast);
+        }
+        #board input.cell:nth-child(n+19):nth-child(-n+27),
+        #board input.cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 3px solid var(--pico-contrast);
+        }
+        #board input.cell.given {
+            font-weight: bold;
+            color: var(--pico-contrast);
+            background-color: var(--pico-card-sectioning-background-color);
+        }
+        #board input.cell.error {
+            background-color: rgba(231, 76, 60, 0.3);
+            color: #e74c3c;
+        }
+        #board input.cell.won {
+            background-color: rgba(46, 204, 113, 0.3);
+            color: #2ecc71;
+        }
+        #win-message {
+            color: #2ecc71;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <h1>Sudoku</h1>
+        </header>
+
+        <section id="game-config">
+            <label for="difficulty">Niveau :</label>
+            <select id="difficulty">
+                <option value="easy">Facile</option>
+                <option value="normal">Normal</option>
+                <option value="hard">Difficile</option>
+            </select>
+            <button onclick="startGame()">Nouvelle partie</button>
+        </section>
+
+        <section id="game-area" style="display:none;" aria-live="polite">
+            <p id="win-message" style="display:none;">Bravo !</p>
+            <div id="board" aria-label="Grille de jeu"></div>
+            <button onclick="checkSolution()">Vérifier</button>
+        </section>
+    </main>
+
+    <script>
+        let currentGameId = null;
+
+        // Fonction pour appeler la route Python qui crée la partie
+        async function startGame() {
+            const difficulty = document.getElementById('difficulty').value;
+
+            const response = await fetch('/api/sudoku/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ difficulty: difficulty })
+            });
+            const data = await response.json();
+
+            currentGameId = data.game_id;
+
+            // Met à jour l'interface web
+            drawBoard(data.grid);
+            document.getElementById('game-area').style.display = 'block';
+            document.getElementById('win-message').style.display = 'none';
+        }
+
+        // Fonction pour afficher la grille (0 = case vide)
+        function drawBoard(grid) {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+
+            grid.forEach(row => {
+                row.forEach(value => {
+                    const cell = document.createElement('input');
+                    cell.className = 'cell';
+                    cell.maxLength = 1;
+                    cell.inputMode = 'numeric';
+
+                    if (value !== 0) {
+                        cell.value = value;
+                        cell.readOnly = true;
+                        cell.classList.add('given');
+                    } else {
+                        // N'accepte que les chiffres de 1 à 9
+                        cell.addEventListener('input', () => {
+                            cell.value = cell.value.replace(/[^1-9]/g, '');
+                            cell.classList.remove('error');
+                        });
+                    }
+
+                    board.appendChild(cell);
+                });
+            });
+        }
+
+        // Fonction pour lire la grille du joueur sous forme de liste 9 x 9
+        function readBoard() {
+            const cells = document.querySelectorAll('#board .cell');
+            const board = [];
+
+            cells.forEach((cell, index) => {
+                if (index % 9 === 0) {
+                    board.push([]);
+                }
+                board[board.length - 1].push(Number(cell.value) || 0);
+            });
+
+            return board;
+        }
+
+        // Fonction pour envoyer la grille au code Python
+        async function checkSolution() {
+            try {
+                const response = await fetch(`/api/sudoku/${currentGameId}/check`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ board: readBoard() })
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    console.error('Erreur :', data.detail);
+                    return;
+                }
+
+                showResult(data);
+            }
+            catch (error) {
+                console.error('Erreur :', error);
+            }
+        }
+
+        // Fonction pour surligner les erreurs en rouge, ou toute la grille en vert si gagné
+        function showResult(data) {
+            const cells = document.querySelectorAll('#board .cell');
+
+            cells.forEach(cell => cell.classList.remove('error'));
+            data.errors.forEach(([row, col]) => cells[row * 9 + col].classList.add('error'));
+
+            if (data.status === 'won') {
+                cells.forEach(cell => {
+                    cell.classList.add('won');
+                    cell.readOnly = true;
+                });
+                document.getElementById('win-message').style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

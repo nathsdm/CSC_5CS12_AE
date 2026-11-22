@@ -1,4 +1,6 @@
 import random
+from typing import Literal
+from pydantic import BaseModel
 from src.game import Game
 
 
@@ -125,3 +127,21 @@ class Sudoku(Game):
             return True
         else:
             return False
+
+    def findErrors(self, player_solution):
+        errors = []
+
+        for row in range(9):
+            for col in range(9):
+                value = player_solution[row][col]
+                if value != self.solution[row][col]:
+                    errors.append([row, col])
+        return errors
+
+
+class SudokuConfig(BaseModel):
+    difficulty: Literal["easy", "normal", "hard"] = "easy"
+
+
+class SudokuInput(BaseModel):
+    board: list[list[int]]
